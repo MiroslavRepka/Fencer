@@ -2,7 +2,10 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 const token = '';
 
+const MAX_SEC = 10;
+
 var currentOpponent = null;
+var startTime;
 
 
 client.once('ready', () => {
@@ -31,12 +34,13 @@ function figthMe(message) {
     }
     var fightProbability = Math.random();
     //dont react to own message
-    if (message.author != client.user) {
-        //10% chance to fight
+    if (message.author.client != client.user) {
         if (fightProbability > 0.5) {
             console.log('Fighting');
-            message.channel.send('Fight me!');
-            currentOpponent = message.author;
+            currentOpponent = message.member;
+            message.channel.send('Fight me <@' + currentOpponent.id + '>!');
+            startTime = new Date().getTime();
+            setTimeout(function () { checkIfLost(currentOpponent, message.channel); }, MAX_SEC * 1000);
         }
     }
 }
@@ -44,23 +48,51 @@ function figthMe(message) {
 function checkIfFoughtBack(messageReaction, user) {
     console.log('Checking if fighting');
     if (messageReaction.message.content === 'Fight me!') {
-        if (user === currentOpponent) {
+        if (user.id === currentOpponent.id) {
             if (messageReaction.emoji.identifier === '%F0%9F%A4%BA') {
-                console.log('Fought back');
-                messageReaction.message.channel.send('<@' + currentOpponent.id + '> is not a coward');
-                currentOpponent = null;
+                if (new Date().getTime() - (MAX_SEC * 1000) <= startTime) {
+                    won(messageReaction);
+                } else {
+                    lostBecauseTime(messageReaction.message.channel);
+                }
             } else {
-                console.log('Wrong emoji');
-                messageReaction.message.channel.send('<@' + currentOpponent.id + '> is that a missclick? Looks like you will be a coward...');
-                currentOpponent = null;
-                setNicknameTo('Coward');
+                lostBecauseMissClick(messageReaction);
             }
         }
     }
 }
 
-function setNicknameTo(nickname) {
+function setNicknameTo(nickname, opponent) {
 
+}
+
+function checkIfLost(opponent, channel) {
+    if (opponent === currentOpponent && opponent != null) {
+        lostBecauseTime(channel, opponent);
+    }
+}
+
+function lostBecauseTime(channel, opponent) {
+    channel.send('<@' + opponent.id + '> was too slow!');
+    currentOpponent = null;
+}
+
+function lostBecauseMissClick(messageReaction) {
+    console.log('Wrong emoji');
+    messageReaction.message.channel.send('<@' + currentOpponent.id + '> is that a missclick? Looks like you will be a coward...');
+    setNicknameTo('Coward', currentOpponent);
+    currentOpponent = null;
+}
+
+function won(messageReaction) {
+    console.log('Fought back');
+    messageReaction.message.channel.send('<@' + currentOpponent.id + '> is not a coward!');
+    currentOpponent = null;
+}
+
+function restart() {
+    currentOpponent = null;
+    startTime = 0;
 }
 
 //has to be last line
