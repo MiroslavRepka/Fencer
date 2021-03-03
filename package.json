@@ -1,0 +1,14 @@
+{
+  "name": "discordbot_fightme",
+  "version": "1.0.0",
+  "description": "This is discorbot created as a inside joke.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Miroslav Repka",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^12.5.1"
+  }
+}
