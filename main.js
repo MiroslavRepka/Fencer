@@ -1,6 +1,6 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
-const token = 'ODE2MjQ0Njc0NjE1NTc0NTM5.YD4JFw.BsiQC9DwdJQBC2cejvtzvtEqLJM';
+const token = '';
 
 const MAX_SEC = 5;
 
