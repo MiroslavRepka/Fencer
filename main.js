@@ -1,6 +1,6 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
-const token = 'ODE2MjQ0Njc0NjE1NTc0NTM5.YD4JFw.v2IzHmiH-KX4n5rqKKwhoZp4j-k';
+const token = '';
 
 var currentOpponent = null;
 
