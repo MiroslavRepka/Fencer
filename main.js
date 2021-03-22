@@ -2,19 +2,11 @@ const Discord = require('discord.js');
 const config = require('./config/config.js');
 const client = new Discord.Client();
 // database stuff
-const firebase = require('./node_modules/firebase/app');
-const FieldValue = require('./node_modules/firebase-admin').firestore.FieldValue;
-const admin = require('./node_modules/firebase-admin');
-const serviceAccount = require('./config/serviceAccount.json');
+const fs = require('fs');
 //fighting buffers
 let currentOpponent = new Set();
 let startTime = new Map();
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-})
-
-let db = admin.firestore();
 
 client.once('ready', () => {
     console.log('Preparing for the fight...');
@@ -24,7 +16,7 @@ client.once('ready', () => {
 
 client.on("guildCreate", guild => {
     console.log("Joined a new guild: " + guild.name);
-    checkIfDbExists(client.guilds);
+    checkIfDbExists(guild);
 });
 
 //When someone sends a message, try to fight him
@@ -74,7 +66,6 @@ function checkIfFoughtBack(messageReaction, user) {
             if (messageReaction.emoji.identifier === '%F0%9F%A4%BA') {
                 if (new Date().getTime() - (config.delay * 1000) <= startTime.get(user)) {
                     won(messageReaction, user);
-                    restart(user);
                 } else {
                     lostBecauseTime(messageReaction.message);
                 }
@@ -93,7 +84,6 @@ function setNicknameTo(me, nickname, opponent) {
 }
 
 function checkIfLost(opponent, message) {
-    console.log('Opponent', opponent, '\n if ', currentOpponent.has(opponent));
     if (currentOpponent.has(opponent) && opponent != null) {
         lostBecauseTime(message, opponent);
     }
@@ -103,6 +93,7 @@ function lostBecauseTime(message, opponent) {
     message.channel.send('<@' + opponent.id + '> was too slow!');
     setNicknameTo(message.guild.me, 'Coward', opponent);
     restart(opponent);
+    addPoints(opponent, message.guild, false);
 }
 
 function lostBecauseMissClick(messageReaction, user) {
@@ -110,11 +101,14 @@ function lostBecauseMissClick(messageReaction, user) {
     messageReaction.message.channel.send('<@' + user.id + '> is that a missclick? Looks like you will be a coward...');
     setNicknameTo(messageReaction.message.guild.me, 'Coward', user);
     restart(user);
+    addPoints(user, messageReaction.message.guild, false);
 }
 
 function won(messageReaction, user) {
     console.log('Fought back');
     messageReaction.message.channel.send('<@' + user.id + '> is not a coward!');
+    restart(user);
+    addPoints(user, messageReaction.message.guild, true);
 }
 
 function restart(user) {
@@ -123,17 +117,72 @@ function restart(user) {
     currentOpponent.delete(user);
 }
 
+function addPoints(user, guild, won) {
+    fs.readFile('./db/' + guild.name + '.json', (err, data) => {
+        if (err) throw err;
+        let found = false;
+        const object = JSON.parse(data);
+        console.log(object);
+        for (element in object.players) {
+            if (element === user.id) {
+                if (won) {
+                    object.players[element].won++;
+                } else {
+                    object.players[element].lost++;
+                }
+                object.players[element] = {
+                    username: object.players[element].username,
+                    won: object.players[element].won,
+                    lost: object.players[element].lost
+                };
+                found = true;
+                console.log(object);
+                break;
+            }
+        }
+        if (!found) {
+            let newWon = 0;
+            let newLost = 0;
+            if (won) {
+                newWon = 1;
+            } else {
+                newLost = 1;
+            }
+            let newPlayer = {
+                username: user.username,
+                won: newWon,
+                lost: newLost
+            }
+            object.players[user.id] = newPlayer;
+        }
+        fs.writeFile('./db/' + guild.name + '.json', JSON.stringify(object), function writeJSON(err) {
+            if (err) return console.log(err);
+            console.log('Writing to ' + './db/' + guild.name + '.json');
+        });
+    });
+}
+
+/**
+ * Checks if json file exists, if not, it will create one with the correect structure of json
+ */
 function checkIfDbExists(guild) {
-    const querySnapshot = admin.firestore().collection('guilds').doc('guild-' + guild.id).collection('subcollection').get().then(querySnapshot => {
-        //table already exists
-        console.log(`Found document`);
-    }).catch(async documentSnapshot => {
-        //create a table for this guild
-        const data = {
-            name: guild.name,
-            id: guild.id
-        };
-        const res = await db.collection('guilds').doc('guild-' + guild.id).set(data);
+    console.log(guild.name);
+    fs.readFile('./db/' + guild.name + '.json', (err, data) => {
+        if (err) {
+            const players = {}
+            const json = {
+                name: guild.name,
+                id: guild.id,
+                joined: guild.joinedAt,
+                owner: guild.owner,
+                players: players
+            };
+            const jsonString = JSON.stringify(json);
+            fs.appendFile('./db/' + guild.name + '.json', jsonString, function (err) {
+                if (err) throw err;
+                console.log('Updated!');
+            });
+        }
     });
 }
 
