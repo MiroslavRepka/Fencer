@@ -118,48 +118,46 @@ function restart(user) {
 }
 
 function addPoints(user, guild, won) {
-    fs.readFile('./db/' + guild.name + '.json', (err, data) => {
+    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) throw err;
-        let found = false;
         const object = JSON.parse(data);
         console.log(object);
-        for (element in object.players) {
-            if (element === user.id) {
-                if (won) {
-                    object.players[element].won++;
-                } else {
-                    object.players[element].lost++;
-                }
-                object.players[element] = {
-                    username: object.players[element].username,
-                    won: object.players[element].won,
-                    lost: object.players[element].lost
-                };
-                found = true;
-                console.log(object);
-                break;
-            }
-        }
-        if (!found) {
-            let newWon = 0;
-            let newLost = 0;
-            if (won) {
-                newWon = 1;
-            } else {
-                newLost = 1;
-            }
-            let newPlayer = {
-                username: user.username,
-                won: newWon,
-                lost: newLost
-            }
-            object.players[user.id] = newPlayer;
-        }
-        fs.writeFile('./db/' + guild.name + '.json', JSON.stringify(object), function writeJSON(err) {
+        addToPlayer(object, user, won);
+        fs.writeFile('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
             if (err) return console.log(err);
-            console.log('Writing to ' + './db/' + guild.name + '.json');
+            console.log('Writing to ' + './db/' + guild.name + '_' + guild.id + '.json');
         });
     });
+}
+
+function addToPlayer(object, user, won) {
+    for (element in object.players) {
+        if (element === user.id) {
+            if (won) {
+                object.players[element].won++;
+            } else {
+                object.players[element].lost++;
+            }
+            return;
+        }
+    }
+    createPlayer(object, user, won);
+}
+
+function createPlayer(object, user, won) {
+    let newWon = 0;
+    let newLost = 0;
+    if (won) {
+        newWon = 1;
+    } else {
+        newLost = 1;
+    }
+    let newPlayer = {
+        username: user.username,
+        won: newWon,
+        lost: newLost
+    }
+    object.players[user.id] = newPlayer;
 }
 
 /**
@@ -167,7 +165,7 @@ function addPoints(user, guild, won) {
  */
 function checkIfDbExists(guild) {
     console.log(guild.name);
-    fs.readFile('./db/' + guild.name + '.json', (err, data) => {
+    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) {
             const players = {}
             const json = {
@@ -177,8 +175,8 @@ function checkIfDbExists(guild) {
                 owner: guild.owner,
                 players: players
             };
-            const jsonString = JSON.stringify(json);
-            fs.appendFile('./db/' + guild.name + '.json', jsonString, function (err) {
+            const jsonString = JSON.stringify(json, null, 2);
+            fs.appendFile('./db/' + guild.name + '_' + guild.id + '.json', jsonString, function (err) {
                 if (err) throw err;
                 console.log('Updated!');
             });
