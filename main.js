@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const config = require('./config/config.js');
 const client = new Discord.Client();
+const commands = require('./Commands.js');
 // database stuff
 const fs = require('fs');
 //fighting buffers
@@ -8,9 +9,10 @@ let currentOpponent = new Set();
 let startTime = new Map();
 
 
+
+//-------------------events-------------------------
 client.once('ready', () => {
     console.log('Preparing for the fight...');
-    console.log('Delay:', config.delay);
 
 });
 
@@ -19,11 +21,18 @@ client.on("guildCreate", guild => {
     checkIfDbExists(guild);
 });
 
-//When someone sends a message, try to fight him
 client.on('message', function (message) {
-    //just one figth per user at any given time
-    if (!currentOpponent.has(message.author))
+    if (message.author === client.user) {
+        //dont react to own message
+        return;
+    }
+    if (message.content.startsWith(prefix(message.guild))) { //command
+        commands.executeCommand(message);
+    } else if (message.content.startsWith('Fencer-prefix')) {
+        commands.prefix(message.slice(13, message.content.length()), message.guild);    //change prefix
+    } else if (!currentOpponent.has(message.author)) { //just one figth per user at any given time
         figthMe(message);
+    }
 });
 
 //check if fight message had a reaction
@@ -46,17 +55,15 @@ process.on('SIGINT', function () {
 
 function figthMe(message) {
     let fightProbability = Math.random();
-    //dont react to own message
-    if (message.author !== client.user) {
-        if (fightProbability > 0.5) {
-            currentOpponent.add(message.author);
-            message.channel.send('Fight me <@' + message.member.id + '>!');
-            startTime.set(message.author, new Date().getTime());
-            setTimeout(function () {
-                checkIfLost(message.author, message);
-            }, (config.delay) * 1000);
-        }
+    if (fightProbability > 0.5) {
+        currentOpponent.add(message.author);
+        message.channel.send('Fight me <@' + message.member.id + '>!');
+        startTime.set(message.author, new Date().getTime());
+        setTimeout(function () {
+            checkIfLost(message.author, message);
+        }, (commands.readDelay(message.guild)) * 1000);
     }
+
 }
 
 function checkIfFoughtBack(messageReaction, user) {
@@ -70,7 +77,7 @@ function checkIfFoughtBack(messageReaction, user) {
                     lostBecauseTime(messageReaction.message);
                 }
             } else {
-                console.log("Miss");
+                console.log('Miss');
                 lostBecauseMissClick(messageReaction, user);
             }
         }
@@ -118,10 +125,10 @@ function restart(user) {
 }
 
 function addPoints(user, guild, won) {
+    let object;
     fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) throw err;
-        const object = JSON.parse(data);
-        console.log(object);
+        object = JSON.parse(data);
         addToPlayer(object, user, won);
         fs.writeFile('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
             if (err) return console.log(err);
@@ -173,6 +180,8 @@ function checkIfDbExists(guild) {
                 id: guild.id,
                 joined: guild.joinedAt,
                 owner: guild.owner,
+                prefix: '!',
+                delay: 5,
                 players: players
             };
             const jsonString = JSON.stringify(json, null, 2);
@@ -182,6 +191,16 @@ function checkIfDbExists(guild) {
             });
         }
     });
+}
+
+function prefix(guild) {
+    let object =
+        fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', { encoding: 'utf8', flag: 'r' },
+            function (err, data) {
+                if (err)
+                    throw err;
+            });
+    return JSON.parse(object).prefix;
 }
 
 client.login(config.token);
