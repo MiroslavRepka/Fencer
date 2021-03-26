@@ -29,8 +29,8 @@ client.on('message', function (message) {
     if (message.content.startsWith(prefix(message.guild))) { //command
         commands.executeCommand(message);
     } else if (message.content.startsWith('Fencer-prefix')) {
-        commands.prefix(message.slice(13, message.content.length()), message.guild);    //change prefix
-    } else if (!currentOpponent.has(message.author)) { //just one figth per user at any given time
+        commands.prefix(message);    //change prefix
+    } else if (!currentOpponent.has(message.author) && isPlaying(message)) { //just one figth per user at any given time
         figthMe(message);
     }
 });
@@ -52,6 +52,25 @@ process.on('SIGINT', function () {
 });
 
 //-------------------functions-----------------------
+
+function isPlaying(message) {
+    let object =
+        fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', { encoding: 'utf8', flag: 'r' },
+            function (err, data) {
+                if (err)
+                    throw err;
+            });
+    return findPlayerForPlaying(message.author, JSON.parse(object));
+}
+
+function findPlayerForPlaying(user, object) {
+    for (element in object.players) {
+        if (element === user.id) {
+            return object.players[element].playing; //status of a player
+        }
+    }
+    return true;    //player not found in db, therefore playing (this will add a record for this player)
+}
 
 function figthMe(message) {
     let fightProbability = Math.random();
@@ -126,11 +145,11 @@ function restart(user) {
 
 function addPoints(user, guild, won) {
     let object;
-    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
+    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) throw err;
         object = JSON.parse(data);
         addToPlayer(object, user, won);
-        fs.writeFile('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
             if (err) return console.log(err);
             console.log('Writing to ' + './db/' + guild.name + '_' + guild.id + '.json');
         });
@@ -162,7 +181,8 @@ function createPlayer(object, user, won) {
     let newPlayer = {
         username: user.username,
         won: newWon,
-        lost: newLost
+        lost: newLost,
+        playing: true
     }
     object.players[user.id] = newPlayer;
 }
@@ -172,7 +192,7 @@ function createPlayer(object, user, won) {
  */
 function checkIfDbExists(guild) {
     console.log(guild.name);
-    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
+    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) {
             const players = {}
             const json = {
@@ -185,7 +205,7 @@ function checkIfDbExists(guild) {
                 players: players
             };
             const jsonString = JSON.stringify(json, null, 2);
-            fs.appendFile('./db/' + guild.name + '_' + guild.id + '.json', jsonString, function (err) {
+            fs.appendFileSync('./db/' + guild.name + '_' + guild.id + '.json', jsonString, function (err) {
                 if (err) throw err;
                 console.log('Updated!');
             });

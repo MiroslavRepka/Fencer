@@ -19,12 +19,35 @@ function help() {
 function rank() {
     return;
 }
-function coward() {
-    return;
+function playingStatus(playing, message) {
+    let object;
+    fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
+        if (err) {
+            message.channel.send('Failed to change your status');
+            throw err;
+        }
+        object = JSON.parse(data);
+        changePlayerStatus(playing, message, object);
+        fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+            if (err) {
+                message.channel.send('Failed to change your status');
+                throw err;
+            }
+        });
+    });
 }
-function fighter() {
-    return;
+
+function changePlayerStatus(playing, message, object) {
+    for (element in object.players) {
+        if (element === message.author.id) {
+            object.players[element].playing = playing;
+            message.channel.send('Status changed succesfuly');
+            return;
+        }
+    }
+    message.channel.send('Named not found in database of players. Consider playing before asking to change status.');
 }
+
 function rules() {
     return new Discord.MessageEmbed()
         .setColor('#FFFFFF')
@@ -56,14 +79,14 @@ function delay(guild, delay) {
     else return 'You must set a valid delay';
 }
 
-function writeDelay(guild, delay) {
+function writeDelay(guild, delay) { //TODO return
     let object;
-    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
+    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err)
             return 'Error has occured, delay has not changed';
         object = JSON.parse(data);
         object.delay = delay;
-        fs.writeFile('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
             if (err)
                 return 'Error has occured, delay has not changed';
         });
@@ -82,17 +105,24 @@ exports.readDelay = function (guild) {
     return JSON.parse(object).delay;
 }
 
-exports.prefix = function (prefix, guild) {
+exports.prefix = function (message) {
     let object;
-    fs.readFile('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
-        if (err) throw err;
+    let prefix = message.content.slice(13, message.content.length).trim();
+    fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
+        if (err) {
+            message.channel.send('Failed to update prefix');
+            throw err;
+        }
         object = JSON.parse(data);
         object.prefix = prefix;
-        fs.writeFile('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
-            if (err) return console.log(err);
+        fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+            if (err) {
+                message.channel.send('Failed to update prefix');
+                throw err;
+            }
         });
     });
-
+    message.channel.send('Prefix updated to `' + prefix + '`.');
 }
 exports.executeCommand = function (message) {
     let command = message.content.slice(1, message.content.length).split(' ');
@@ -104,10 +134,10 @@ exports.executeCommand = function (message) {
 
             break;
         case 'coward':
-
+            playingStatus(false, message);
             break;
         case 'fighter':
-
+            playingStatus(true, message);
             break;
         case 'info':
             message.channel.send(info(message.guild));
