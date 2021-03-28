@@ -14,26 +14,64 @@ function help() {
             { name: '!rules', value: 'To show the rules' },
             { name: '!delay <value>', value: 'To set new delay' },
             { name: 'Fencer-prefix <new prefix>', value: 'To set a new prefix' }
-        )
+        );
 }
-function rank() {
-    return;
-}
-function playingStatus(playing, message) {
-    let object;
-    fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
+
+function getPlayerInfo(user, guild) {
+    let data = fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
         if (err) {
-            message.channel.send('Failed to change your status');
             throw err;
         }
-        object = JSON.parse(data);
-        changePlayerStatus(playing, message, object);
-        fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+    });
+    let object = JSON.parse(data);
+    for (element in object.players) {
+        if (element === user) {
+            let rank = object.players[element].won > object.players[element].lost ? 'Brave fighter' : 'Coward';
+            playerInfo = {
+                won: object.players[element].won,
+                lost: object.players[element].lost,
+                username: object.players[element].username,
+                rank: rank
+            }
+            return playerInfo;
+        }
+    }
+}
+
+
+function rank(user, guild) {
+    if (!user) {
+        return 'You must use a valid username';
+    }
+    let trimmedUser = user.replace(new RegExp('<@!|>', 'g'), '');
+    let playerInfo = getPlayerInfo(trimmedUser, guild);
+    if (playerInfo)
+        return new Discord.MessageEmbed()
+            .setColor('#FFFFFF')
+            .setAuthor(playerInfo.username)
+            .addFields(
+                { name: 'Won fights', value: playerInfo.won },
+                { name: 'Lost fights', value: playerInfo.lost },
+                { name: 'Rank', value: playerInfo.rank }
+            );
+    else
+        return 'Player not in databse';
+}
+function playingStatus(playing, message) {
+    let data =
+        fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
             if (err) {
                 message.channel.send('Failed to change your status');
                 throw err;
             }
         });
+    let object = JSON.parse(data);
+    changePlayerStatus(playing, message, object);
+    fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        if (err) {
+            message.channel.send('Failed to change your status');
+            throw err;
+        }
     });
 }
 
@@ -132,7 +170,7 @@ exports.executeCommand = function (message) {
             message.channel.send(help());
             break;
         case 'rank':
-
+            message.channel.send(rank(command[1], message.guild));
             break;
         case 'coward':
             playingStatus(false, message);
