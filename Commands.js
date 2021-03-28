@@ -80,16 +80,18 @@ function delay(guild, delay) {
 }
 
 function writeDelay(guild, delay) { //TODO return
-    let object;
-    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
-        if (err)
-            return 'Error has occured, delay has not changed';
-        object = JSON.parse(data);
-        object.delay = delay;
-        fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+    let data =
+        fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
             if (err)
                 return 'Error has occured, delay has not changed';
+
+
         });
+    let object = JSON.parse(data);
+    object.delay = delay;
+    fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        if (err)
+            return 'Error has occured, delay has not changed';
     });
     return 'Delay successfuly changed';
 }
@@ -106,21 +108,20 @@ exports.readDelay = function (guild) {
 }
 
 exports.prefix = function (message) {
-    let object;
     let prefix = message.content.slice(13, message.content.length).trim();
-    fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
+    let data = fs.readFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', (err, data) => {
         if (err) {
             message.channel.send('Failed to update prefix');
             throw err;
         }
-        object = JSON.parse(data);
-        object.prefix = prefix;
-        fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
-            if (err) {
-                message.channel.send('Failed to update prefix');
-                throw err;
-            }
-        });
+    });
+    let object = JSON.parse(data);
+    object.prefix = prefix;
+    fs.writeFileSync('./db/' + message.guild.name + '_' + message.guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        if (err) {
+            message.channel.send('Failed to update prefix');
+            throw err;
+        }
     });
     message.channel.send('Prefix updated to `' + prefix + '`.');
 }

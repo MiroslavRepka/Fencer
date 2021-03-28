@@ -13,12 +13,12 @@ let startTime = new Map();
 //-------------------events-------------------------
 client.once('ready', () => {
     console.log('Preparing for the fight...');
-
+    client.guilds.cache.each(guild => checkIfDatabaseExists(guild)); //check if db exists
 });
 
 client.on("guildCreate", guild => {
     console.log("Joined a new guild: " + guild.name);
-    checkIfDbExists(guild);
+    createDatabase(guild);
 });
 
 client.on('message', function (message) {
@@ -26,7 +26,7 @@ client.on('message', function (message) {
         //dont react to own message
         return;
     }
-    if (message.content.startsWith(prefix(message.guild))) { //command
+    if (message.content.startsWith(checkPrefix(message.guild))) { //command
         commands.executeCommand(message);
     } else if (message.content.startsWith('Fencer-prefix')) {
         commands.prefix(message);    //change prefix
@@ -144,15 +144,15 @@ function restart(user) {
 }
 
 function addPoints(user, guild, won) {
-    let object;
-    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
-        if (err) throw err;
-        object = JSON.parse(data);
-        addToPlayer(object, user, won);
-        fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
-            if (err) return console.log(err);
-            console.log('Writing to ' + './db/' + guild.name + '_' + guild.id + '.json');
+    let data =
+        fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
+            if (err) throw err;
         });
+    let object = JSON.parse(data);
+    addToPlayer(object, user, won);
+    fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', JSON.stringify(object, null, 2), function writeJSON(err) {
+        if (err) return console.log(err);
+        console.log('Writing to ' + './db/' + guild.name + '_' + guild.id + '.json');
     });
 }
 
@@ -190,30 +190,26 @@ function createPlayer(object, user, won) {
 /**
  * Checks if json file exists, if not, it will create one with the correect structure of json
  */
-function checkIfDbExists(guild) {
+function createDatabase(guild) {
     console.log(guild.name);
-    fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', (err, data) => {
-        if (err) {
-            const players = {}
-            const json = {
-                name: guild.name,
-                id: guild.id,
-                joined: guild.joinedAt,
-                owner: guild.owner,
-                prefix: '!',
-                delay: 5,
-                players: players
-            };
-            const jsonString = JSON.stringify(json, null, 2);
-            fs.appendFileSync('./db/' + guild.name + '_' + guild.id + '.json', jsonString, function (err) {
-                if (err) throw err;
-                console.log('Updated!');
-            });
-        }
+    const players = {}
+    const json = {
+        name: guild.name,
+        id: guild.id,
+        joined: guild.joinedAt,
+        owner: guild.owner,
+        prefix: '!',
+        delay: 5,
+        players: players
+    };
+    const jsonString = JSON.stringify(json, null, 2);
+    fs.writeFileSync('./db/' + guild.name + '_' + guild.id + '.json', jsonString, function (err) {
+        if (err) throw err;
+        console.log('Updated!');
     });
 }
 
-function prefix(guild) {
+function checkPrefix(guild) {
     let object =
         fs.readFileSync('./db/' + guild.name + '_' + guild.id + '.json', { encoding: 'utf8', flag: 'r' },
             function (err, data) {
@@ -221,6 +217,21 @@ function prefix(guild) {
                     throw err;
             });
     return JSON.parse(object).prefix;
+}
+
+function checkIfDatabaseExists(guild) {
+    let path = './db/' + guild.name + '_' + guild.id + '.json';
+    // See if the file exists
+    try {
+        if (fs.existsSync(path)) {
+            console.log('Db exists ' + guild.name);
+        } else {
+            console.log('No db found ' + guild.name);
+            createDatabase(guild);
+        }
+    } catch (err) {
+        console.log(err);
+    }
 }
 
 client.login(config.token);
